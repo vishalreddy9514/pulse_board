@@ -7,3 +7,6 @@ coverage/
 .env.local
 .DS_Store
 *.tsbuildinfo
+
+# Redis writes its dump here if a server is started from the repo
+dump.rdb

@@ -195,6 +195,11 @@ middle of a chart and no replay logic to get wrong. The snapshot is assembled
 from the Redis cache of recent events and a Postgres query for chart history, so
 a reconnecting dashboard looks identical to one that has been open all day.
 
+![Reconnecting after the backend goes away](docs/reconnecting.png)
+
+While the connection is down the UI says so and the feed simply stops; it never
+invents a data point to fill the gap.
+
 An expired or forged token is treated differently from a network drop: the server
 disconnects it, the client stops retrying and the user is sent back to the login
 screen. Retrying a request that can never succeed is just a slower failure.
@@ -283,6 +288,27 @@ settings that WebSockets actually need, and what changes when you run more than
 one backend instance.
 
 ![The historical view](docs/dashboard-history.png)
+
+## Known limitations and what I would do next
+
+- **Pub/sub is lossy by design.** Events published while the backend is
+  restarting are gone. Moving to a Redis Stream with a consumer group makes the
+  transport durable and gives at-least-once delivery, which the idempotent
+  insert already tolerates.
+- **No rate limiting on the auth endpoints.** A real deployment wants
+  `@nestjs/throttler` in front of login, plus refresh tokens so the access token
+  can be short-lived. Today a token is valid for 12 hours and cannot be revoked
+  short of rotating the signing secret.
+- **The events table grows without bound.** At the producer's default rate that
+  is about 170k rows a day. Monthly partitions plus a retention policy, or a
+  rollup table for anything older than a week, is the next change the historical
+  queries would need.
+- **The browser path is not covered in CI.** The component tests and the
+  integration suite meet in the middle but never in a real browser; a Playwright
+  run that logs in and asserts the numbers move would close that gap.
+- **Metrics are per-instance.** See the scaling notes in `deploy/README.md` —
+  correct at any instance count, but a freshly started instance shows a
+  partially filled window for its first five minutes.
 
 ## Configuration
 
