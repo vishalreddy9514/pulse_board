@@ -1,0 +1,107 @@
+# PulseBoard local stack: docker compose up --build brings up everything.
+#
+#   postgres  : durable event + user storage
+#   redis     : pub/sub transport and recent-event cache
+#   backend   : REST API, Redis consumer and Socket.IO gateway
+#   producer  : synthetic event source, publishes to Redis
+#   frontend  : the dashboard, built with Vite and served by nginx
+#
+# Service start-up order is enforced with health checks rather than sleeps, so
+# the backend never races Postgres on a cold machine.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pulseboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulseboard}
+      POSTGRES_DB: ${POSTGRES_DB:-pulseboard}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-pulseboard} -d ${POSTGRES_DB:-pulseboard}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'no', '--save', '']
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-pulseboard}:${POSTGRES_PASSWORD:-pulseboard}@postgres:5432/${POSTGRES_DB:-pulseboard}
+      REDIS_URL: redis://redis:6379
+      REDIS_EVENT_CHANNEL: ${REDIS_EVENT_CHANNEL:-pulseboard:events}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-to-a-long-random-string}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      EVENT_FEED_SIZE: ${EVENT_FEED_SIZE:-50}
+      SEED_USER_EMAIL: ${SEED_USER_EMAIL:-demo@pulseboard.dev}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-demo1234}
+      ALERT_REVENUE_SPIKE: ${ALERT_REVENUE_SPIKE:-5000}
+      ALERT_REVENUE_DROP: ${ALERT_REVENUE_DROP:-200}
+      ALERT_ORDERS_SURGE: ${ALERT_ORDERS_SURGE:-90}
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  producer:
+    build:
+      context: ./producer
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      REDIS_EVENT_CHANNEL: ${REDIS_EVENT_CHANNEL:-pulseboard:events}
+      PRODUCER_INTERVAL_MS: ${PRODUCER_INTERVAL_MS:-450}
+      PRODUCER_BURST_FACTOR: ${PRODUCER_BURST_FACTOR:-1}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Vite inlines these at build time, so they are build args rather than
+        # runtime environment variables.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+        VITE_WS_URL: ${VITE_WS_URL:-http://localhost:4000}
+    restart: unless-stopped
+    ports:
+      - '5173:80'
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
