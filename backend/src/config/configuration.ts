@@ -45,9 +45,9 @@ export default (): { app: AppConfig } => ({
     seedUserEmail: process.env.SEED_USER_EMAIL,
     seedUserPassword: process.env.SEED_USER_PASSWORD,
     alerts: {
-      revenueSpike: num(process.env.ALERT_REVENUE_SPIKE, 5000),
-      revenueDrop: num(process.env.ALERT_REVENUE_DROP, 200),
-      ordersSurge: num(process.env.ALERT_ORDERS_SURGE, 90),
+      revenueSpike: num(process.env.ALERT_REVENUE_SPIKE, 20_000),
+      revenueDrop: num(process.env.ALERT_REVENUE_DROP, 2_000),
+      ordersSurge: num(process.env.ALERT_ORDERS_SURGE, 40),
     },
   },
 });

@@ -1,0 +1,84 @@
+{
+  "family": "pulseboard",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/pulseboardTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/pulseboard-backend:latest",
+      "essential": true,
+      "portMappings": [{ "containerPort": 4000, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "4000" },
+        { "name": "REDIS_EVENT_CHANNEL", "value": "pulseboard:events" },
+        { "name": "EVENT_FEED_SIZE", "value": "50" },
+        { "name": "JWT_EXPIRES_IN", "value": "12h" },
+        { "name": "CORS_ORIGIN", "value": "https://pulseboard.example.com" },
+        { "name": "ALERT_REVENUE_SPIKE", "value": "20000" },
+        { "name": "ALERT_REVENUE_DROP", "value": "2000" },
+        { "name": "ALERT_ORDERS_SURGE", "value": "40" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:pulseboard/database-url"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:pulseboard/redis-url"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:pulseboard/jwt-secret"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/pulseboard",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "backend"
+        }
+      }
+    },
+    {
+      "name": "producer",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/pulseboard-producer:latest",
+      "essential": false,
+      "environment": [
+        { "name": "REDIS_EVENT_CHANNEL", "value": "pulseboard:events" },
+        { "name": "PRODUCER_INTERVAL_MS", "value": "450" },
+        { "name": "PRODUCER_BURST_FACTOR", "value": "1" }
+      ],
+      "secrets": [
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:pulseboard/redis-url"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/pulseboard",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "producer"
+        }
+      }
+    }
+  ]
+}

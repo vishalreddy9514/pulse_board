@@ -45,7 +45,10 @@ export class EventsRepository {
   async insertMany(events: PulseEvent[]): Promise<void> {
     if (events.length === 0) return;
 
-    const columns = 6;
+    // One placeholder per column: id, type, amount, user_id, region, product,
+    // occurred_at. This must match the value list below exactly, or rows after
+    // the first in a batch get their parameters shifted.
+    const columns = 7;
     const values: unknown[] = [];
     const placeholders = events.map((event, index) => {
       const base = index * columns;

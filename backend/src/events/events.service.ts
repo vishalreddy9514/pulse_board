@@ -31,11 +31,13 @@ export class EventsService {
     return this.repository.series(range, bucketSeconds);
   }
 
-  summary(query: HistoryRangeDto): Promise<HistorySummary> {
+  // async so that a bad range rejects rather than throwing synchronously; the
+  // two are equivalent to Nest, but not to a caller holding the promise.
+  async summary(query: HistoryRangeDto): Promise<HistorySummary> {
     return this.repository.summary(resolveRange(query));
   }
 
-  list(query: HistoryEventsQueryDto): Promise<PulseEvent[]> {
+  async list(query: HistoryEventsQueryDto): Promise<PulseEvent[]> {
     return this.repository.list({
       ...resolveRange(query),
       type: query.type,

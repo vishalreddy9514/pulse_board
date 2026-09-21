@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface-950 text-slate-200 antialiased;
+  }
+
+  /* The feed and alert panel scroll independently; keep their scrollbars quiet. */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-surface-700;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
