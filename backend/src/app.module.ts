@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { EmbeddedProducerModule } from './producer/producer.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -18,6 +19,7 @@ import { RedisModule } from './redis/redis.module';
     MetricsModule,
     EventsModule,
     RealtimeModule,
+    EmbeddedProducerModule,
     HealthModule,
   ],
 })

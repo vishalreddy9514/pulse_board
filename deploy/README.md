@@ -3,8 +3,12 @@
 The three services are ordinary containers with no local state, so anything
 that runs containers will do.
 
-**Free, and the fastest way to get a public URL:** one Oracle Cloud Always Free
-VM running the whole stack — see [`oracle-vm.md`](./oracle-vm.md), which uses
+**Free, no credit card:** Render for the API and the dashboard, Neon for
+Postgres, Redis Cloud for Redis — see [`render.md`](./render.md). The API sleeps
+when idle, which is the price of the free plan.
+
+**Free and always on, if you can get a VM:** one Oracle Cloud Always Free
+instance running the whole stack — see [`oracle-vm.md`](./oracle-vm.md), which uses
 [`docker-compose.prod.yml`](./docker-compose.prod.yml) (Caddy in front for TLS,
 Postgres and Redis reachable only inside the compose network).
 

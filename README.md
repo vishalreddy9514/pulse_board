@@ -247,7 +247,7 @@ that, with a missing token and with a forged one.
 ## Testing
 
 ```bash
-cd backend  && npm test                 # 48 unit tests
+cd backend  && npm test                 # 43 unit tests
 cd backend  && npm run test:integration # 6 tests against real Redis + Postgres
 cd frontend && npm test                 # 27 component and hook tests
 cd producer && npm test                 # 9 generator tests
@@ -281,6 +281,10 @@ integration suite against Postgres and Redis service containers, and a container
 image build for all three Dockerfiles once the rest is green.
 
 ## Deployment
+
+[`deploy/render.md`](deploy/render.md) is the free path: Render, Neon and Redis
+Cloud, no card required. [`deploy/oracle-vm.md`](deploy/oracle-vm.md) runs the
+whole compose stack on one always-free VM.
 
 See [`deploy/README.md`](deploy/README.md) for AWS ECS Fargate and Azure App
 Service walkthroughs, the environment-variable contract, the two load-balancer
@@ -319,6 +323,7 @@ each variable with its default. The ones worth knowing:
 | -------- | ------- | ------ |
 | `EVENT_FEED_SIZE` | 50 | How many recent events a reconnecting client gets |
 | `PRODUCER_INTERVAL_MS` | 450 | Mean gap between generated events |
+| `EMBEDDED_PRODUCER` | false | Generate events inside the API process, for hosts that allow only one always-on process |
 | `PRODUCER_BURST_FACTOR` | 1 | Multiplies traffic; raise it to force alerts |
 | `ALERT_REVENUE_SPIKE` | 20000 | Revenue/min above this raises a spike alert |
 | `ALERT_REVENUE_DROP` | 2000 | Revenue/min below this raises a drop alert |

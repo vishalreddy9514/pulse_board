@@ -15,6 +15,10 @@ export interface AppConfig {
   jwtExpiresIn: string;
   seedUserEmail?: string;
   seedUserPassword?: string;
+  /** Generate events inside this process instead of running the producer service. */
+  embeddedProducer: boolean;
+  producerIntervalMs: number;
+  producerBurstFactor: number;
   alerts: {
     revenueSpike: number;
     revenueDrop: number;
@@ -44,6 +48,9 @@ export default (): { app: AppConfig } => ({
     jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
     seedUserEmail: process.env.SEED_USER_EMAIL,
     seedUserPassword: process.env.SEED_USER_PASSWORD,
+    embeddedProducer: process.env.EMBEDDED_PRODUCER === 'true',
+    producerIntervalMs: num(process.env.PRODUCER_INTERVAL_MS, 450),
+    producerBurstFactor: num(process.env.PRODUCER_BURST_FACTOR, 1),
     alerts: {
       revenueSpike: num(process.env.ALERT_REVENUE_SPIKE, 20_000),
       revenueDrop: num(process.env.ALERT_REVENUE_DROP, 2_000),
