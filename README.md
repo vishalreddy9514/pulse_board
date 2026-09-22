@@ -22,6 +22,11 @@ is the reconnection handling doing its job. And events only accumulate while the
 service is awake, so the history view is sparse at first and fills in with use.
 [`deploy/render.md`](deploy/render.md) is the walkthrough.
 
+Built with AI assistance (Claude Code) as a pair programmer. The scope, the
+stack and the architecture decisions are mine, every change was reviewed before
+it landed, and the reasoning behind the significant ones is written up under
+[Key real-time engineering decisions](#key-real-time-engineering-decisions).
+
 ## What it demonstrates
 
 - **Streaming end to end** — producer → Redis pub/sub → backend consumer →
