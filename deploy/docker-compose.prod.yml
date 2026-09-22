@@ -1,0 +1,125 @@
+# Production stack for a single VM (an Oracle Cloud Always Free box, or any
+# other host that can run Docker).
+#
+# Differences from the development stack at the repository root:
+#   - Postgres and Redis publish no ports; they are reachable only inside the
+#     compose network, so the database is not on the public internet.
+#   - Caddy terminates TLS and is the only thing listening publicly. It serves
+#     the dashboard and proxies /api and /socket.io to the backend, so the whole
+#     app is one origin and there is no cross-origin WebSocket to configure.
+#   - Everything restarts unless stopped, so a reboot brings the stack back.
+#
+# Usage, from the repository root:
+#   cp deploy/.env.prod.example .env
+#   # edit .env: PUBLIC_URL, CADDY_SITE_ADDRESS, POSTGRES_PASSWORD, JWT_SECRET
+#   docker compose -f deploy/docker-compose.prod.yml up -d --build
+
+name: pulseboard
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pulseboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-pulseboard}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-pulseboard} -d ${POSTGRES_DB:-pulseboard}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'no', '--save', '']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-pulseboard}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pulseboard}
+      REDIS_URL: redis://redis:6379
+      REDIS_EVENT_CHANNEL: ${REDIS_EVENT_CHANNEL:-pulseboard:events}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env — openssl rand -hex 32}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      # Same origin as the dashboard, because Caddy fronts both.
+      CORS_ORIGIN: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+      EVENT_FEED_SIZE: ${EVENT_FEED_SIZE:-50}
+      # Demo account. Comment both out for a deployment that is not a demo.
+      SEED_USER_EMAIL: ${SEED_USER_EMAIL:-}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+      ALERT_REVENUE_SPIKE: ${ALERT_REVENUE_SPIKE:-20000}
+      ALERT_REVENUE_DROP: ${ALERT_REVENUE_DROP:-2000}
+      ALERT_ORDERS_SURGE: ${ALERT_ORDERS_SURGE:-40}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  producer:
+    build:
+      context: ../producer
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      REDIS_EVENT_CHANNEL: ${REDIS_EVENT_CHANNEL:-pulseboard:events}
+      PRODUCER_INTERVAL_MS: ${PRODUCER_INTERVAL_MS:-450}
+      PRODUCER_BURST_FACTOR: ${PRODUCER_BURST_FACTOR:-1}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        # Vite inlines these, so the dashboard has to be rebuilt if the public
+        # URL changes. Same origin as the API, which Caddy arranges.
+        VITE_API_URL: ${PUBLIC_URL}
+        VITE_WS_URL: ${PUBLIC_URL}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      # A hostname gets an automatic Let's Encrypt certificate. Use ":80" while
+      # you only have an IP address — certificates cannot be issued for one.
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

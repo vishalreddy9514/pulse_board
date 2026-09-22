@@ -1,0 +1,29 @@
+# One origin for the whole app: the dashboard, the REST API and the WebSocket
+# all answer on the same host, which removes CORS from the deployment entirely.
+#
+# CADDY_SITE_ADDRESS is a hostname (example.com) for automatic HTTPS, or ":80"
+# when all you have is an IP address — a public CA will not issue for an IP.
+
+{$CADDY_SITE_ADDRESS} {
+	encode gzip
+
+	# The WebSocket. Caddy passes the upgrade through without extra config, and
+	# holds the connection open indefinitely.
+	handle /socket.io/* {
+		reverse_proxy backend:4000
+	}
+
+	handle /api/* {
+		reverse_proxy backend:4000
+	}
+
+	# Everything else is the static dashboard.
+	handle {
+		reverse_proxy frontend:80
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

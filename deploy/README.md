@@ -1,8 +1,14 @@
 # Deploying PulseBoard
 
 The three services are ordinary containers with no local state, so anything
-that runs containers will do. Two concrete paths are written out below: AWS ECS
-Fargate and Azure App Service. Both need the same four things:
+that runs containers will do.
+
+**Free, and the fastest way to get a public URL:** one Oracle Cloud Always Free
+VM running the whole stack — see [`oracle-vm.md`](./oracle-vm.md), which uses
+[`docker-compose.prod.yml`](./docker-compose.prod.yml) (Caddy in front for TLS,
+Postgres and Redis reachable only inside the compose network).
+
+Two managed paths are written out below: AWS ECS Fargate and Azure App Service. Both need the same four things:
 
 | Dependency  | AWS                          | Azure                          |
 | ----------- | ---------------------------- | ------------------------------ |
