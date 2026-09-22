@@ -8,6 +8,20 @@ and nothing refreshes.
 
 ![The live dashboard](docs/dashboard-live.png)
 
+## Live demo
+
+**<https://pulse-board-1.onrender.com>** — sign in with `demo@pulseboard.dev` /
+`demo1234`.
+
+It runs on free tiers: the API and its embedded producer on a Render web
+service, Postgres on [Neon](https://neon.com), Redis on Redis Cloud. Two things
+follow from that and are worth knowing before you click. The API sleeps after
+fifteen minutes without traffic, so the first load after a quiet spell takes up
+to a minute to wake and the dashboard shows "Reconnecting" while it does, which
+is the reconnection handling doing its job. And events only accumulate while the
+service is awake, so the history view is sparse at first and fills in with use.
+[`deploy/render.md`](deploy/render.md) is the walkthrough.
+
 ## What it demonstrates
 
 - **Streaming end to end** — producer → Redis pub/sub → backend consumer →
